@@ -1,0 +1,16 @@
+os_clear_screen equ 0x7e02
+os_move_cursor equ 0x7e05
+os_move_cursor_to_start equ 0x7e08
+os_move_cursor_to_newline equ 0x7e0b
+os_move_cursor_to_line_start equ 0x7e0e
+os_char_in equ 0x7e11
+os_char_out equ 0x7e14
+os_increment_cursor equ 0x7e17
+os_decrement_cursor equ 0x7e1a
+os_page_down equ 0x7e1d
+os_string_out equ 0x7e20
+os_string_in equ 0x7e23
+os_string_copy equ 0x7e26
+os_string_compare equ 0x7e29
+os_string_to_int equ 0x7e2c
+os_int_to_string equ 0x7e2f

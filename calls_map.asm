@@ -1,0 +1,15 @@
+jmp os_clear_screen
+jmp os_move_cursor
+jmp os_move_cursor_to_start
+jmp os_move_cursor_to_newline
+jmp os_char_in
+jmp os_char_out
+jmp os_increment_cursor
+jmp os_decrement_cursor
+jmp os_page_down
+jmp os_string_out
+jmp os_string_in
+jmp os_string_copy
+jmp os_string_compare
+jmp os_string_to_int
+jmp os_int_to_string

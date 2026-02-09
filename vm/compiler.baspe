@@ -1,0 +1,201 @@
+$Console:Only
+DefLng A-Z
+Dim Shared FileBuffer As String, FileBufferOffset As _Unsigned Long
+If _FileExists(Command$) Then FileBuffer = _ReadFile$(Command$) Else If _FileExists(_StartDir$ + "/" + Command$) Then FileBuffer = _ReadFile$(_StartDir$ + "/" + Command$) Else System
+FileBufferOffset = 0
+Dim Shared OutputFile$, OutputFileOffset As _Unsigned Long
+OutputFile$ = ""
+Registers$ = ListStringFromString("a,b,c,d,e,f,i,s")
+Do While FileBufferOffset < Len(FileBuffer)
+    L$ = LCase$(GetNextLine$)
+    L$ = SplitStringIntoList$(_Trim$(Left$(L$, InStr(L$, ";")))) ' Remove Comments
+    FIRST_WORD$ = ListStringGet(L$, 1)
+    Print "Current Line: "; ListStringPrint(L$)
+    ARG_ONE$ = ListStringGet(L$, 2)
+    ARG_TWO$ = ListStringGet(L$, 3)
+    Select Case FIRST_WORD$
+        Case "nop": AddBitBuffer 0, 8
+        Case "shl": If IsValue(ARG_TWO$) Then
+                AddBitBuffer 5, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 4
+                AddBitBuffer 0, 4 ' Padding
+            Else
+                AddBitBuffer 1, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "shr": If IsValue(ARG_TWO$) Then
+                AddBitBuffer 6, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 4
+                AddBitBuffer 0, 4 ' Padding
+            Else
+                AddBitBuffer 2, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "not": AddBitBuffer 8, 6
+            AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+        Case "clc": AddBitBuffer 36, 8
+        Case "stc": AddBitBuffer 37, 8
+        Case "hlt": AddBitBuffer 39, 8
+        Case "ret": AddBitBuffer 38, 8
+        Case "push": AddBitBuffer 12, 6
+            AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+        Case "pop": AddBitBuffer 10, 6
+            AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+        Case "or":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 21, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 17, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "and":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 22, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 18, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "xor":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 23, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 19, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "add":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 14, 5
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 3
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 16, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "mul":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 25, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 24, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "div":
+            If IsValue(ARG_TWO$) Then
+                AddBitBuffer 27, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 26, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer 0, 6 ' Padding
+            End If
+        Case "test": AddBitBuffer 8, 4
+            AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+            AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+        Case "jc", "jnc", "jz", "jnz": AddBitBuffer 144 + ListStringSearch(ListStringFromString("jc,jnc,jz,jnz"), FIRST_WORD$), 8
+            AddBitBuffer ParseValue(ARG_ONE$), 16
+        Case "jmp": AddBitBuffer 149 + ListStringSearch(ListStringFromString("eq,l,g,le,ge,ne"), ARG_ONE$), 8
+            AddBitBuffer ParseValue(ARG_TWO$), 16
+        Case "call": AddBitBuffer 159, 8
+            AddBitBuffer ParseValue(ARG_ONE$), 16
+        Case "mov": If IsValue(ARG_ONE$) Then
+                AddBitBuffer 46, 6
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                AddBitBuffer ParseValue(ARG_ONE$), 16
+            Else
+                If IsValue(ARG_TWO$) Then ' Incomplete
+                Else
+                    AddBitBuffer 10, 4
+                    AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                    AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+                End If
+            End If
+        Case "cmp": If IsValue(ARG_TWO$) Then ' Incomplete
+                AddBitBuffer 13, 4
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer 1, 2 ' Memory
+                'AddBitBuffer 2, 2 ' Value
+                AddBitBuffer ParseValue(ARG_TWO$), 16
+            Else
+                AddBitBuffer 12, 4
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$) - 1, 2
+                AddBitBuffer ListStringSearch(Registers$, ARG_TWO$) - 1, 2
+            End If
+        Case "int": AddBitBuffer 7, 3
+            AddBitBuffer ParseValue(ARG_ONE$), 5
+    End Select
+Loop
+Sleep
+System
+
+Sub AddBitBuffer (Value~&&, Bits~%%)
+    Static BitBuffer~&&, BitBufferSize~%%, BitCount~%%
+    BitBuffer~&& = _ShL(BitBuffer~&&, Bits~%%) Or Value~&&
+    BitBufferSize~%% = BitBufferSize~%% + Bits~%%
+    PutBitBuffer OutputFile$, OutputFileOffset, BitBuffer~&&, BitBufferSize~%%, BitCount~%%
+End Sub
+'$Include:'include\putbitbuffermsb.bm'
+'$Include:'include\dsa\liststring.bas'
+Function GetNextLine$ () Static ' Ultra Fast File Reader
+    __I~& = InStr(FileBufferOffset, FileBuffer, MKI$(&H0A0D))
+    If __I~& Then
+        GetNextLine$ = Mid$(FileBuffer, FileBufferOffset, __I~& - FileBufferOffset)
+        FileBufferOffset = __I~& + 2
+    Else
+        GetNextLine$ = Mid$(FileBuffer, FileBufferOffset)
+        FileBufferOffset = Len(FileBuffer)
+    End If
+End Function
+Function SplitStringIntoList$ (I$) Static
+    O$ = ListStringNew
+    ListStringAdd O$, Left$(I$, 1)
+    For I = 2 To Len(I$)
+        B~%% = Asc(I$, I)
+        Select Case B~%%
+            Case 32, 44: If Len(ListStringGet(O$, ListStringLength(O$))) Then ListStringAdd O$, ""
+            Case 65 To 90, 48 To 57, 97 To 122: ListStringEdit O$, ListStringGet$(O$, ListStringLength(O$)) + Chr$(B~%%), ListStringLength(O$)
+        End Select
+    Next I
+    SplitStringIntoList$ = O$
+End Function
+Function IsValue` (I$) Static
+    Select Case Asc(I$)
+        Case 48 To 57: IsValue = -1
+        Case Else: IsValue = 0
+    End Select
+End Function
+Function ParseValue~% (I$) Static
+    If Left$(I$, 2) = "0x" Then
+        ParseValue~% = Val("&H" + Mid$(I$, 3))
+    ElseIf Right$(I$, 1) = "h" Then
+        ParseValue~% = Val("&H" + Left$(I$, Len(I$) - 1))
+    ElseIf Right$(I$, 1) = "b" Then
+        ParseValue~% = Val("&B" + Left$(I$, Len(I$) - 1))
+    Else
+        ParseValue~% = Val(I$)
+    End If
+End Function

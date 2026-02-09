@@ -1,0 +1,142 @@
+Registers:
+general: a, b, c, d
+string: e, f
+instruction: i
+stack: s
+
+Flags:
+zero
+carry
+parity
+sign
+equal
+overflow <- alu, stack, heap
+
+Instructions:
+	Register	R -> 3 bits -> 8 registers
+	Memory		M -> 13 bits -> 8 KB
+	Value		V -> 16 bits -> 0~65535
+			V4-> 4 bits -> 0~15
+	Condition	C -> 3 bits
+		eq, l, g, le, ge, ne
+	Interrupt ID	X -> 4 bits
+    Instruction Types:
+    	0	R, R
+	1	R, M
+	2	R, V
+	3	M, R
+	4	M, M
+Size	Opcodes	First	Second	Instruction
+4	0-			nop
+
+16	10	R	R	add R, R
+24	12	R	V	add R, V
+
+16	20	R	R	mul R, R
+24	22	R	V	mul R, V
+
+16	30	R	R	div R, R
+24	32	R	V	div R, V
+
+16	40	R	R	shl R, R
+16	42	R	V4	shl R, V
+
+16	50	R	R	shr R, R
+16	52	R	V4	shr R, V
+
+16	60	R	R	and R, R
+24	62	R	V	and R, V
+
+16	70	R	R	or R, R
+24	72	R	V	or R, V
+
+16	80	R	R	xor R, R
+24	82	R	V	xor R, V
+
+8	9-	R		not R
+
+24	A0	flag: carry	jc M
+24	A1	flag: no carry	jnc M
+24	A2	flag: zero	jz M
+24	A3	flag: no zero	jnz M
+24	AA	eq	M	jmp eq, M
+24	AB	l	M	jmp l, M
+24	AC	g	M	jmp g, M
+24	AD	le	M	jmp le, M
+24	AE	ge	M	jmp ge, M
+24	AF	ne	M	jmp ne, M
+
+16	C0	R	R	cmp R, R
+24	C1	R	M	cmp R, M
+24	C2	R	V	cmp R, V
+
+8	D1			clc
+8	D2			stc
+8	DF			hlt
+
+24	E1	M		call M
+8	E0			ret
+16	E3	R		push R -> can change the overflow flag.
+16	E2	R		pop R -> will destroy the register on underflow.
+
+16	B0	R	R	mov R, R
+24	B1	R	M	mov R, M
+24	B2	R	V	mov R, V
+24	B3	M	R	mov M, R
+
+8	F-	X		int X -> will handle all disk handling, text, graphics (later), keyboard, mouse (later)
+
+Updated Opcode Table
+Size	Code			Instruction
+8	000 000 00		nop
+10+	000 001 __ __		shl R, R
+12+	000 101 __ ____		shl R, V4
+10+	000 010 __ __		shr R, R
+12+	000 110 __ ____		shr R, V4
+
+8	001 000 __		not R <= { a, b, c, d }
+8	001 001 00		clc
+8	001 001 01		stc
+8	001 001 11		hlt
+8	001 001 10		ret
+8	001 100 __		push
+8	001 010 __		pop
+
+or  => 01, and => 10, xor => 11
+10	010 0~~ R R		and, or, xor R, R <= { a, b, c, d }
+24	010 1~~ R V		and, or, xor R, V <= { a, b, c, d, 0~65535 }
+
+14	010 000 R R		add R, R <= { a, b, c, d, e, f }
+24	011 10  R V		add R, V <= { a, b, c, d, e, f, 0~65535 }
+10	011 0~0 R R		mul, div R, R <= { a, b, c, d }
+24	011 0~1 R V		mul, div R, V <= { a, b, c, d, 0~65535 }
+
+8	100 0 R R		test R, R <= { a, b, c, d }
+24	100 1 ____ M		jc, jnc, jz, jnz, jmp (6)
+24	100 111 11 M		call
+
+8	101 0 R R		mov R, R
+24	101 100 R M		mov R, M
+24	101 101 R V		mov R, V
+24	101 110	R M		mov M, R
+
+8	110 0 __ R		cmp R, R
+24	110 1 __ 01 M		cmp R, M
+24	110 1 __ 10 V		cmp R, V
+
+8	111 X			int X
+
+
+Program Syntax:
+; Main Program
+
+; Program Data
+
+heap_memory: ; Indicator for Compiler
+
+; Only labels.
+; Useful for creating variables and arrays.
+
+Interrupts:
+0x01(b <- (Background, Text))->(): Clear Screen
+0x02
