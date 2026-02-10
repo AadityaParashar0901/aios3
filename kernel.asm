@@ -43,6 +43,9 @@ mov si, os_input_string
   mov di, command_echo
     call os_string_compare_till_b_length
     jc kernel_echo
+  mov di, command_help
+    call os_string_compare_till_b_length
+    jc kernel_help
   mov di, command_shutdown
     call os_string_compare_till_b_length
     jc kernel_shutdown
@@ -57,6 +60,7 @@ cli_msg db "> ", 0
 new_file_name db "meow.txt", 0
 command_clear db "clear", 0
 command_echo db "echo", 0
+command_help db "help", 0
 command_shutdown db "shutdown", 0
 command_f db "counter", 0
 
@@ -70,6 +74,12 @@ kernel_echo:
   add si, 5
   call os_string_out
   jmp kernel_loop
+
+kernel_help:
+  mov si, kernel_help_string
+  call os_string_out
+  jmp kernel_loop
+  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    help", 13, "    shutdown", 13, "    counter", 0
 
 kernel_shutdown:
   call os_shutdown
