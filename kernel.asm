@@ -8,7 +8,7 @@ boot_device db 0
 text_color db 0
 back_color db 0
 current_page db 0
-os_input_string equ 0xfeff
+os_input_string equ 0x7d00
 
 kernel_pre_init:
 mov byte [boot_device], bl ; Save boot device
@@ -43,13 +43,19 @@ mov si, os_input_string
   mov di, command_echo
     call os_string_compare_till_b_length
     jc kernel_echo
+  mov di, command_ls
+    call os_string_compare_till_b_length
+    jc kernel_ls
+  mov di, command_touch
+    call os_string_compare_till_b_length
+    jc kernel_touch
   mov di, command_help
     call os_string_compare_till_b_length
     jc kernel_help
   mov di, command_shutdown
     call os_string_compare_till_b_length
     jc kernel_shutdown
-  mov di, command_f
+  mov di, command_counter
     call os_string_compare_till_b_length
     jc kernel_counter
 
@@ -57,12 +63,14 @@ jmp kernel_loop
 
 welcome_msg db "Hello! Welcome to AIOS 3!", 13, 0
 cli_msg db "> ", 0
-new_file_name db "meow.txt", 0
+new_file_name db "pussy_cat.txt", 0
 command_clear db "clear", 0
 command_echo db "echo", 0
+command_ls db "ls", 0
+command_touch db "touch", 0
 command_help db "help", 0
 command_shutdown db "shutdown", 0
-command_f db "counter", 0
+command_counter db "counter", 0
 
 kernel_clear:
   call os_clear_screen
@@ -73,6 +81,16 @@ kernel_echo:
   mov si, os_input_string
   add si, 5
   call os_string_out
+  jmp kernel_loop
+
+kernel_ls:
+  call os_print_files_index
+  jmp kernel_loop
+
+kernel_touch:
+  mov si, os_input_string
+  add si, 6
+  call os_new_file
   jmp kernel_loop
 
 kernel_help:
