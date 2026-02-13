@@ -6,9 +6,8 @@ Sector 0A - 0F: File Table -> 48 Files
 Each file will be of 8 KB -> 16 Sectors
 File Table Entry (64 bytes):
   File Exists Byte (1 byte)
-  Identifier (58 bytes) ; Name
+  Identifier (61 bytes) ; Name
   Size (2 bytes)
-  Pointer (3 bytes)
 
 %endif
 
