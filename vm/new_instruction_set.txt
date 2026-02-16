@@ -1,0 +1,52 @@
+New & Simple Opcode Table
+Code		Size		Instruction
+00		1		nop
+01 RR		2		add R, R
+02 0R __ _V	4		add R, V
+03 RR		2		mul R, R
+04 0R __ _V	4		mul R, V
+05 RR		2		div R, R
+06 0R __ _V	4		div R, V
+07 RR		2		shl R, R
+08 RV		2		shl R, V4
+09 RR		2		shr R, R
+0A RV		2		shr R, V4
+0B 0R		2		not R
+0C RR		2		test R, R
+0D RR		2		and R, R
+0E 0R __ _V	4		and R, V
+0F RR		2		or R, R
+10 0R __ _V	4		or R, V
+11 RR		2		xor R, R
+12 0R __ _V	4		xor R, V
+13		1		clc
+14		1		stc
+15		1		hlt
+16		1		ret
+17 0R		2		push R
+18 0R		2		pop R
+19 __ _M	3		call M
+1A __ _M	3		jc M
+1B __ _M	3		jnc M
+1C __ _M	3		jz M
+1D __ _M	3		jnz M
+1E __ _M	3		jmp eq M
+1F __ _M	3		jmp l M
+20 __ _M	3		jmp g M
+21 __ _M	3		jmp le M
+22 __ _M	3		jmp ge M
+23 __ _M	3		jmp ne M
+2C __ _M	3		jmp uc M
+24 RR		2		mov R, R
+25 0R __ _M	4		mov R, M
+26 0R __ _V	4		mov R, V
+27 0R __ _M	4		mov M, R
+28 RR		2		cmp R, R
+29 0R __ _M	4		cmp R, M
+2A 0R __ _V	4		cmp R, V
+2B _X		2		int X
+
+# Memory Referencing
+Memory can be referenced in two ways:
+1. labels
+2. constants inside square brackets
