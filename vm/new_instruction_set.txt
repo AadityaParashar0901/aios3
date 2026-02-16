@@ -1,4 +1,4 @@
-New & Simple Opcode Table
+# New & Simple Opcode Table
 Code		Size		Instruction
 00		1		nop
 01 RR		2		add R, R
@@ -54,3 +54,34 @@ Code		Size		Instruction
 Memory can be referenced in two ways:
 1. labels
 2. constants inside square brackets
+
+# Interrupts
+1. Clear Screen {
+	background-color: high-nibble(b);
+	font-color: low-nibble(b);
+}
+2. Print Character {
+	character: a;
+}
+3. Input Character {
+	character: a;
+	wait-for-keypress: carry-flag;
+}
+4. Print String {
+	string-pointer: e;
+}
+5. Input String {
+	string-pointer: f;
+}
+6. Convert String to Integer {
+	string-pointer: f;
+	integer: a;
+}
+7. Convert Integer to String {
+	integer: a;
+	string-pointer: e;
+}
+8. Get Cursor Position {
+	row: high-byte(d);
+	column: low-byte(d);
+}
