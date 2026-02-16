@@ -6,22 +6,42 @@ Const ARG_TYPE_MEMORY = 2
 Const ARG_TYPE_VALUE = 3
 
 Dim Shared FileBuffer As String, FileBufferOffset As _Unsigned Long
-Dim Shared As _Unsigned _Byte NoFileMode: NoFileMode = 0
-If _FileExists(Command$) Then FileBuffer = _ReadFile$(Command$) Else If _FileExists(_StartDir$ + "/" + Command$) Then FileBuffer = _ReadFile$(_StartDir$ + "/" + Command$) Else NoFileMode = 1
+If _FileExists(Command$) Then FileBuffer = _ReadFile$(Command$) Else If _FileExists(_StartDir$ + "/" + Command$) Then FileBuffer = _ReadFile$(_StartDir$ + "/" + Command$) Else System
 FileBufferOffset = 0
 Dim Shared OutputFile$, OutputFileOffset As _Unsigned Long: OutputFile$ = ""
-Dim Shared Registers$, LabelsList$, CurrentLine As _Unsigned Integer
+Dim Shared Registers$, LabelsList$, LabelsOffset$, PendingLabelsList$, CurrentLine As _Unsigned Integer
 Registers$ = ListStringFromString("a,b,c,d,e,f,i,s")
-Do While FileBufferOffset < Len(FileBuffer) Or NoFileMode
-    L$ = LCase$(GetNextLine$): CurrentLine = CurrentLine + 1
+LabelsList$ = ListStringNew
+LabelsOffset$ = ListStringNew
+PendingLabelsList$ = ListStringNew
+Do While FileBufferOffset < Len(FileBuffer)
+    OriginalLine$ = GetNextLine$
+    L$ = LCase$(OriginalLine$): CurrentLine = CurrentLine + 1
+    If InStr(L$, ":") Then
+        ListStringAdd LabelsList$, ListStringGet(SplitStringIntoList$(L$), 1)
+        ListStringAdd LabelsOffset$, MKI$(OutputFileOffset)
+        Print "Adding Label: "; ListStringGet(LabelsList$, ListStringLength(LabelsList$)); ":"; OutputFileOffset
+        _Continue
+    End If
     If InStr(L$, ";") Then L$ = SplitStringIntoList$(_Trim$(Left$(L$, InStr(L$, ";")))) Else L$ = SplitStringIntoList$(L$) ' Remove Comments
-    Print "Current Line: "; ListStringPrint(L$)
+    Print "Current Line: "; ListStringPrint(SplitStringIntoList$(OriginalLine$))
     FIRST_WORD$ = ListStringGet(L$, 1)
     If ListStringLength(L$) >= 2 Then ARG_ONE$ = ListStringGet(L$, 2)
     If ListStringLength(L$) >= 3 Then ARG_TWO$ = ListStringGet(L$, 3)
     Select Case FIRST_WORD$
+        Case "data": L$ = SplitStringIntoList$(OriginalLine$): For I = 2 To ListStringLength(L$)
+                __I$ = ListStringGet(L$, I)
+                If Asc(__I$, 1) = 34 Then
+                    For __I = 2 To Len(__I$) - 1
+                        AddBitBuffer Asc(__I$, __I), 8
+                    Next __I
+                Else
+                    AddBitBuffer Val(__I$), 8
+                End If
+            Next I
         Case "nop": AddBitBuffer 0, 8
         Case "clc", "stc", "hlt", "ret": AddBitBuffer 18 + ListStringSearch(ListStringFromString("clc,stc,hlt,ret"), FIRST_WORD$), 8
+        Case "lodb", "lodw", "stob", "stow": AddBitBuffer 44 + ListStringSearch(ListStringFromString("lodb,lodw,stob,stow"), FIRST_WORD$), 8
         Case "not": AddBitBuffer 11, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
         Case "int": AddBitBuffer 43, 8: AddBitBuffer ParseValue(ARG_ONE$), 8
         Case "push", "pop": AddBitBuffer 22 + ListStringSearch(ListStringFromString("push,pop"), FIRST_WORD$), 8
@@ -40,7 +60,7 @@ Do While FileBufferOffset < Len(FileBuffer) Or NoFileMode
                         Case ARG_TYPE_REGISTER: AddBitBuffer 36, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 4: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 4
                         Case ARG_TYPE_MEMORY: AddBitBuffer 39, 8: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 8: AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
                     End Select
-                Case ARG_TYPE_MEMORY: AddBitBuffer 37, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
+                Case ARG_TYPE_MEMORY: AddBitBuffer 37, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseMemoryLocation(ARG_TWO$), 16
                 Case ARG_TYPE_VALUE: AddBitBuffer 38, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseValue(ARG_TWO$), 16
             End Select
         Case "add", "mul", "div", "shl", "shr", "test", "and", "or", "xor", "cmp": Select Case GetArgType(ARG_TWO$)
@@ -57,7 +77,18 @@ Do While FileBufferOffset < Len(FileBuffer) Or NoFileMode
             End Select
     End Select
 Loop
-Sleep
+Print
+Print "Labels: "; ListStringPrint(LabelsList$)
+Print "Length of PendingLabelsList: "; ListStringLength(PendingLabelsList$)
+For I = 1 To ListStringLength(PendingLabelsList$)
+    L$ = ListStringGet(PendingLabelsList$, I)
+    __Label$ = Left$(L$, Len(L$) - 2)
+    If ListStringSearch(LabelsList$, __Label$) = 0 Then System InvalidLabel(__Label$)
+    __Position~% = CVI(Right$(L$, 2))
+    Print "Updating "; __Label$; " at position:"; __Position~%
+    Mid$(OutputFile$, __Position~%, 2) = ListStringGet(LabelsOffset$, ListStringSearch(LabelsList$, __Label$))
+Next I
+_WriteFile Command$ + ".bin", Left$(OutputFile$, OutputFileOffset)
 System
 
 Function GetArgType~%% (ARG$) Static
@@ -65,7 +96,7 @@ Function GetArgType~%% (ARG$) Static
         Case 97 To 102, 105, 115: GetArgType~%% = ARG_TYPE_REGISTER
         Case 48 To 57: GetArgType~%% = ARG_TYPE_VALUE
         Case 91: GetArgType~%% = ARG_TYPE_MEMORY
-        Case Else: If ListStringSearch(LabelsList$, ARG$) Then GetArgType~%% = ARG_TYPE_MEMORY
+        Case Else: GetArgType~%% = ARG_TYPE_MEMORY
     End Select
 End Function
 
@@ -94,11 +125,22 @@ Function ParseValue~% (I$) Static
     End If
 End Function
 Function ParseMemoryLocation~% (ARG$) Static
+    If Asc(ARG$, 1) = 91 Then
+        ParseMemoryLocation~% = ParseValue~%(Mid$(ARG$, 2, Len(ARG$) - 2))
+    Else
+        Print "Adding Entry to PendingLabelsList: "; ARG$; " for "; _ToStr$(OutputFileOffset + 1)
+        ListStringAdd PendingLabelsList$, ARG$ + MKI$(OutputFileOffset + 1)
+        ParseMemoryLocation~% = 0
+    End If
 End Function
 
 Function InvalidInstruction Static
     Print "Invalid Instruction at Line: "; CurrentLine
-    System
+    System 1
+End Function
+Function InvalidLabel (L$) Static
+    Print "Invalid Label: "; L$
+    InvalidLabel = 2
 End Function
 
 $Checking:Off
@@ -111,24 +153,21 @@ Function SplitStringIntoList$ (I$) Static
         B~%% = Asc(I$, I)
         Select Case B~%%
             Case 32, 44: If Len(ListStringGet(O$, ListStringLength(O$))) Then ListStringAdd O$, ""
-            Case 91, 93, 65 To 90, 48 To 57, 97 To 122: ListStringEdit O$, ListStringGet$(O$, ListStringLength(O$)) + Chr$(B~%%), ListStringLength(O$)
+            Case 34: If ListStringGet(O$, ListStringLength(O$)) = "" Then ListStringDelete O$, ListStringLength(O$)
+                ListStringAdd O$, Mid$(I$, I, InStr(I + 1, I$, Chr$(34)) - I + 1): I = InStr(I + 1, I$, Chr$(34)) + 1
+            Case 91, 93, 95, 65 To 90, 48 To 57, 97 To 122: ListStringEdit O$, ListStringGet$(O$, ListStringLength(O$)) + Chr$(B~%%), ListStringLength(O$)
         End Select
     Next I
     SplitStringIntoList$ = O$
 End Function
 Function GetNextLine$ () Static ' Ultra Fast File Reader
-    If NoFileMode Then
-        Line Input " > "; T$
-        GetNextLine$ = T$
+    __I~& = InStr(FileBufferOffset, FileBuffer, Chr$(10))
+    If __I~& Then
+        GetNextLine$ = Mid$(FileBuffer, FileBufferOffset, __I~& - FileBufferOffset)
+        FileBufferOffset = __I~& + 1
     Else
-        __I~& = InStr(FileBufferOffset, FileBuffer, MKI$(&H0A0D))
-        If __I~& Then
-            GetNextLine$ = Mid$(FileBuffer, FileBufferOffset, __I~& - FileBufferOffset)
-            FileBufferOffset = __I~& + 2
-        Else
-            GetNextLine$ = Mid$(FileBuffer, FileBufferOffset)
-            FileBufferOffset = Len(FileBuffer)
-        End If
+        GetNextLine$ = Mid$(FileBuffer, FileBufferOffset)
+        FileBufferOffset = Len(FileBuffer)
     End If
 End Function
 $Checking:On

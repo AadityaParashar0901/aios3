@@ -36,7 +36,7 @@ Code		Size		Instruction
 21 __ _M	3		jmp le M
 22 __ _M	3		jmp ge M
 23 __ _M	3		jmp ne M
-2C __ _M	3		jmp uc M
+2C __ _M	3		jmp M
 24 RR		2		mov R, R
 25 0R __ _M	4		mov R, M
 26 0R __ _V	4		mov R, V
@@ -45,6 +45,10 @@ Code		Size		Instruction
 29 0R __ _M	4		cmp R, M
 2A 0R __ _V	4		cmp R, V
 2B _X		2		int X
+2D		1		lodb
+2E		1		lodw
+2F		1		stob
+30		1		stow
 
 # Memory Referencing
 Memory can be referenced in two ways:
