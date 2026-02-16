@@ -97,7 +97,7 @@ kernel_help:
   mov si, kernel_help_string
   call os_string_out
   jmp kernel_loop
-  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    help", 13, "    shutdown", 13, "    counter", 0
+  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    ls", 13, "    touch", 13, "    help", 13, "    shutdown", 13, "    counter", 0
 
 kernel_shutdown:
   call os_shutdown
