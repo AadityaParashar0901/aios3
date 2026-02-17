@@ -4,81 +4,81 @@ jmp kernel_pre_init
 
 %include "calls_map.asm"
 
-boot_device db 0
-text_color db 0
-back_color db 0
-current_page db 0
-os_input_string equ 0x7d00
+  boot_device db 0
+  text_color db 0
+  back_color db 0
+  current_page db 0
+  os_input_string equ 0x7d00
 
 kernel_pre_init:
-mov byte [boot_device], bl ; Save boot device
-; Clean all registers
-xor ax, ax
-xor bx, bx
-mov cx, 1 ; for os_char_out
-xor dx, dx
+  mov byte [boot_device], bl ; Save boot device
+  ; Clean all registers
+  xor ax, ax
+  xor bx, bx
+  mov cx, 1 ; for os_char_out
+  xor dx, dx
 
 kernel_init:
-; Set Colors : White text on Green
-mov byte [text_color], 15
-mov byte [back_color], 0
-; Set Page Number
-mov byte [current_page], 0
+  ; Set Colors : White text on Green
+  mov byte [text_color], 15
+  mov byte [back_color], 0
+  ; Set Page Number
+  mov byte [current_page], 0
 
-call os_clear_screen ; Clear the screen
-call os_move_cursor_to_start ; Move the cursor to start position
+  call os_clear_screen ; Clear the screen
+  call os_move_cursor_to_start ; Move the cursor to start position
 
-mov si, welcome_msg
-call os_string_out
+  mov si, welcome_msg
+  call os_string_out
 
 kernel_loop:
-call os_move_cursor_to_newline
-mov si, cli_msg
-call os_string_out
-call os_string_in
-mov si, os_input_string
-  mov di, command_clear
-    call os_string_compare_till_b_length
-    jc kernel_clear
-  mov di, command_echo
-    call os_string_compare_till_b_length
-    jc kernel_echo
-  mov di, command_ls
-    call os_string_compare_till_b_length
-    jc kernel_ls
-  mov di, command_read
-    call os_string_compare_till_b_length
-    jc kernel_read
-  mov di, command_write
-    call os_string_compare_till_b_length
-    jc kernel_write
-  mov di, command_touch
-    call os_string_compare_till_b_length
-    jc kernel_touch
-  mov di, command_help
-    call os_string_compare_till_b_length
-    jc kernel_help
-  mov di, command_shutdown
-    call os_string_compare_till_b_length
-    jc kernel_shutdown
-  mov di, command_counter
-    call os_string_compare_till_b_length
-    jc kernel_counter
+  call os_move_cursor_to_newline
+  mov si, cli_msg
+  call os_string_out
+  call os_string_in
+  mov si, os_input_string
+    mov di, command_clear
+      call os_string_compare_till_b_length
+      jc kernel_clear
+    mov di, command_echo
+      call os_string_compare_till_b_length
+      jc kernel_echo
+    mov di, command_ls
+      call os_string_compare_till_b_length
+      jc kernel_ls
+    mov di, command_read
+      call os_string_compare_till_b_length
+      jc kernel_read
+    mov di, command_write
+      call os_string_compare_till_b_length
+      jc kernel_write
+    mov di, command_touch
+      call os_string_compare_till_b_length
+      jc kernel_touch
+    mov di, command_help
+      call os_string_compare_till_b_length
+      jc kernel_help
+    mov di, command_shutdown
+      call os_string_compare_till_b_length
+      jc kernel_shutdown
+    mov di, command_counter
+      call os_string_compare_till_b_length
+      jc kernel_counter
 
-jmp kernel_loop
+  jmp kernel_loop
 
-welcome_msg db "Hello! Welcome to AIOS 3!", 13, 0
-cli_msg db "> ", 0
-new_file_name db "new_demo_file.txt", 0
-command_clear db "clear", 0
-command_echo db "echo", 0
-command_ls db "ls", 0
-command_read db "read", 0
-command_write db "write", 0
-command_touch db "touch", 0
-command_help db "help", 0
-command_shutdown db "shutdown", 0
-command_counter db "counter", 0
+  welcome_msg db "Hello! Welcome to AIOS 3!", 13, 0
+  cli_msg db "> ", 0
+  new_file_name db "new_demo_file.txt", 0
+  command_clear db "clear", 0
+  command_echo db "echo", 0
+  command_ls db "ls", 0
+  command_read db "read", 0
+  command_write db "write", 0
+  command_touch db "touch", 0
+  command_help db "help", 0
+  command_shutdown db "shutdown", 0
+  command_counter db "counter", 0
 
 kernel_clear:
   call os_clear_screen
@@ -97,20 +97,19 @@ kernel_ls:
 
 kernel_read:
   add si, 5
-  mov word [.file_name], si ; Copy File Name Pointer to .file_name
   mov dx, 0
-  mov di, word [.file_name]
-  mov bx, 1000h
-  mov es, bx
-  mov bx, 0100h
+  mov di, si
+  ; mov bx, 1000h
+  ; mov es, bx
+  mov bx, 0B000h
   call os_read_file
   jnc .failed
   .done:
     mov dx, 0
     mov es, dx
-    mov bx, 1000h
-    mov ds, bx
-    mov si, 0100h
+    ; mov bx, 1000h
+    ; mov ds, bx
+    mov si, 0B000h
     call os_string_out
     xor bx, bx
     mov ds, bx
@@ -123,7 +122,6 @@ kernel_read:
     mov si, .failure_msg
     call os_string_out
     jmp kernel_loop
-  .file_name dw 0
   .failure_msg db "File not found!", 0
 
 kernel_write:
@@ -133,16 +131,16 @@ kernel_write:
   mov si, os_input_string
   call os_string_length
   mov word [.file_size], cx
-  mov bx, 1000h
-  mov es, bx
-  mov di, 0100h
+  ; mov bx, 1000h
+  ; mov es, bx
+  mov di, 0B000h
   call os_string_copy ; Copy File Contents to 1:0100h
   mov dx, 0
   mov di, word [.file_name]
   mov cx, word [.file_size]
-  mov bx, 1000h
-  mov es, bx
-  mov bx, 0100h
+  ; mov bx, 1000h
+  ; mov es, bx
+  mov bx, 0B000h
   call os_write_file
   jnc .failed
   .done:
@@ -207,23 +205,23 @@ kernel_counter:
 
 os_shutdown: ; Internet
 
-; Check for APM
-mov ax, 5300h
-xor bx, bx
-int 15h
-jc no_apm        ; carry set = no APM
+  ; Check for APM
+  mov ax, 5300h
+  xor bx, bx
+  int 15h
+  jc no_apm        ; carry set = no APM
 
-; Connect to APM
-mov ax, 5301h
-xor bx, bx
-int 15h
-jc no_apm
+  ; Connect to APM
+  mov ax, 5301h
+  xor bx, bx
+  int 15h
+  jc no_apm
 
-; Set power state to OFF
-mov ax, 5307h
-mov bx, 0001h    ; all devices
-mov cx, 0003h    ; power off
-int 15h
+  ; Set power state to OFF
+  mov ax, 5307h
+  mov bx, 0001h    ; all devices
+  mov cx, 0003h    ; power off
+  int 15h
 
 no_apm:
 ; fallback here (halt, reboot, etc.)

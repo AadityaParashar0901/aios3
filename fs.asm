@@ -195,14 +195,14 @@ os_write_file: ; (cx file_size, dx:di file_name, es:bx memory_offset) -> carry-f
     pop es
     pop bx
     int 13h
-    stc
     popa
+    stc
     ret
   .not_found:
     ; pop cx
     pop es
     pop bx
-    clc
     popa
+    clc
     ret
   .file_offset db 0
