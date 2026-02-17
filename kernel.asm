@@ -2,13 +2,26 @@
 
 jmp kernel_pre_init
 
-%include "calls_map.asm"
-
   boot_device db 0
   text_color db 0
   back_color db 0
   current_page db 0
   os_input_string equ 0x7d00
+
+  Program_Registers:
+  dw 0
+  program_register_a dw 0
+  program_register_b dw 0
+  program_register_c dw 0
+  program_register_d dw 0
+  program_register_e dw 0
+  program_register_f dw 0
+  program_register_i dw 0
+  program_register_s dw 0
+  program_flag_zero db 0
+  program_flag_carry db 0
+  program_flag_equal db 0
+  program_flag_overflow db 0
 
 kernel_pre_init:
   mov byte [boot_device], bl ; Save boot device
@@ -28,182 +41,152 @@ kernel_init:
   call os_clear_screen ; Clear the screen
   call os_move_cursor_to_start ; Move the cursor to start position
 
-  mov si, welcome_msg
-  call os_string_out
+  call os_read_program
 
-kernel_loop:
-  call os_move_cursor_to_newline
-  mov si, cli_msg
-  call os_string_out
-  call os_string_in
-  mov si, os_input_string
-    mov di, command_clear
-      call os_string_compare_till_b_length
-      jc kernel_clear
-    mov di, command_echo
-      call os_string_compare_till_b_length
-      jc kernel_echo
-    mov di, command_ls
-      call os_string_compare_till_b_length
-      jc kernel_ls
-    mov di, command_read
-      call os_string_compare_till_b_length
-      jc kernel_read
-    mov di, command_write
-      call os_string_compare_till_b_length
-      jc kernel_write
-    mov di, command_touch
-      call os_string_compare_till_b_length
-      jc kernel_touch
-    mov di, command_help
-      call os_string_compare_till_b_length
-      jc kernel_help
-    mov di, command_shutdown
-      call os_string_compare_till_b_length
-      jc kernel_shutdown
-    mov di, command_counter
-      call os_string_compare_till_b_length
-      jc kernel_counter
-
-  jmp kernel_loop
-
-  welcome_msg db "Hello! Welcome to AIOS 3!", 13, 0
-  cli_msg db "> ", 0
-  new_file_name db "new_demo_file.txt", 0
-  command_clear db "clear", 0
-  command_echo db "echo", 0
-  command_ls db "ls", 0
-  command_read db "read", 0
-  command_write db "write", 0
-  command_touch db "touch", 0
-  command_help db "help", 0
-  command_shutdown db "shutdown", 0
-  command_counter db "counter", 0
-
-kernel_clear:
-  call os_clear_screen
-  call os_move_cursor_to_start
-  jmp kernel_loop
-
-kernel_echo:
-  mov si, os_input_string
-  add si, 5
-  call os_string_out
-  jmp kernel_loop
-
-kernel_ls:
-  call os_print_files_index
-  jmp kernel_loop
-
-kernel_read:
-  add si, 5
-  mov dx, 0
-  mov di, si
-  ; mov bx, 1000h
-  ; mov es, bx
-  mov bx, 0B000h
-  call os_read_file
-  jnc .failed
-  .done:
-    mov dx, 0
-    mov es, dx
-    ; mov bx, 1000h
-    ; mov ds, bx
+kernel_run_program:
+  program_load_instruction:
+    call program_load_byte
+      cmp al, 0
+      je program_load_instruction
+      cmp al, 1
+      je .program_instruction_add_RR
+      cmp al, 2
+      je .program_instruction_add_RV
+      cmp al, 3
+      je .program_instruction_mul_RR
+      cmp al, 4
+      je .program_instruction_mul_RV
+      cmp al, 5
+      je .program_instruction_div_RR
+      cmp al, 6
+      je .program_instruction_div_RV
+      cmp al, 7
+      je .program_instruction_shl_RR
+      cmp al, 8
+      je .program_instruction_shl_RV
+      cmp al, 9
+      je .program_instruction_shr_RR
+      cmp al, 0ah
+      je .program_instruction_shr_RV
+      cmp al, 0bh
+      je .program_instruction_not_R
+      cmp al, 0ch
+      je .program_instruction_test_RR
+      cmp al, 0dh
+      je .program_instruction_and_RR
+      cmp al, 0eh
+      je .program_instruction_and_RV
+      cmp al, 0fh
+      je .program_instruction_or_RR
+      cmp al, 10h
+      je .program_instruction_or_RV
+      cmp al, 11h
+      je .program_instruction_xor_RR
+      cmp al, 12h
+      je .program_instruction_xor_RV
+      cmp al, 13h
+      je .program_instruction_clc
+      cmp al, 14h
+      je .program_instruction_stc
+      cmp al, 15h
+      je .program_instruction_hlt
+      cmp al, 16h
+      je .program_instruction_ret
+      cmp al, 17h
+      je .program_instruction_push_R
+      cmp al, 18h
+      je .program_instruction_pop_R
+      cmp al, 19h
+      je .program_instruction_call_M
+      cmp al, 1ah
+      je .program_instruction_jc_M
+      cmp al, 1bh
+      je .program_instruction_jnc_M
+      cmp al, 1ch
+      je .program_instruction_jz_M
+      cmp al, 1dh
+      je .program_instruction_jnz_M
+      cmp al, 1eh
+      je .program_instruction_jmp_eq_M
+      cmp al, 1fh
+      je .program_instruction_jmp_l_M
+      cmp al, 20h
+      je .program_instruction_jmp_g_M
+      cmp al, 21h
+      je .program_instruction_jmp_le_M
+      cmp al, 22h
+      je .program_instruction_jmp_ge_M
+      cmp al, 23h
+      je .program_instruction_jmp_ne_M
+      cmp al, 2ch
+      je .program_instruction_jmp_M
+      cmp al, 24h
+      je .program_instruction_mov_RR
+      cmp al, 25h
+      je .program_instruction_mov_RM
+      cmp al, 26h
+      je .program_instruction_mov_RV
+      cmp al, 27h
+      je .program_instruction_mov_MR
+      cmp al, 28h
+      je .program_instruction_cmp_RR
+      cmp al, 29h
+      je .program_instruction_cmp_RM
+      cmp al, 2ah
+      je .program_instruction_cmp_RV
+      cmp al, 2bh
+      je .program_instruction_int_X
+      cmp al, 2dh
+      je .program_instruction_lodb
+      cmp al, 2eh
+      je .program_instruction_lodw
+      cmp al, 2fh
+      je .program_instruction_stob
+      cmp al, 30h
+      je .program_instruction_stow
+jmp kernel_run_program
+  program_read_byte:
     mov si, 0B000h
-    call os_string_out
-    xor bx, bx
-    mov ds, bx
-    jmp kernel_loop
-  .failed:
-    mov bx, 0
-    mov es, bx
-    mov ds, bx
-    mov dx, 0
-    mov si, .failure_msg
-    call os_string_out
-    jmp kernel_loop
-  .failure_msg db "File not found!", 0
+    add si, byte [program_register_i]
+    inc word [program_register_i]
+    lodsb
+    and ax, 255
+    ret
+  program_read_word:
+    mov si, 0B000h
+    add si, word [program_register_i]
+    add word [program_register_i], 2
+    lodsw
+    and ax, 65535
+    ret
+  program_get_two_registers:
+    push ax
+    shr ax, 4
+    shl ax, 1
+    mov byte [.register_a], ax
+    pop ax
+    and ax, 15
+    shl ax, 1
+    mov byte [.register_b], ax
+    mov si, Program_Registers
+    add si, byte [.register_b]
+    lodsw
+    mov bx, ax
+    mov si, Program_Registers
+    add si, byte [.register_a]
+    lodsw
+    ret
+  .program_instruction_add_RR
+    call program_read_byte
+    call program_get_two_registers
+    add ax, bx
 
-kernel_write:
-  add si, 6
-  mov word [.file_name], si ; Copy File Name Pointer to .file_name
-  call os_string_in
-  mov si, os_input_string
-  call os_string_length
-  mov word [.file_size], cx
-  ; mov bx, 1000h
-  ; mov es, bx
-  mov di, 0B000h
-  call os_string_copy ; Copy File Contents to 1:0100h
-  mov dx, 0
-  mov di, word [.file_name]
-  mov cx, word [.file_size]
-  ; mov bx, 1000h
-  ; mov es, bx
-  mov bx, 0B000h
-  call os_write_file
-  jnc .failed
-  .done:
-    mov dx, 0
-    mov es, dx
-    mov ds, dx
-    jmp kernel_loop
-  .failed:
-    mov dx, 0
-    mov es, dx
-    mov ds, dx
-    mov si, .failure_msg
-    call os_string_out
-    jmp kernel_loop
-  .file_name dw 0
-  .file_size dw 0
-  .failure_msg db "File not found!", 0
+    ret
+    .register_a db 0
+    .register_b db 0
 
-kernel_touch:
-  mov si, os_input_string
-  add si, 6
-  call os_new_file
-  jmp kernel_loop
-
-kernel_help:
-  mov si, kernel_help_string
-  call os_string_out
-  jmp kernel_loop
-  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    ls", 13, "    write", 13, "    touch", 13, "    help", 13, "    shutdown", 13, "    counter", 0
-
-kernel_shutdown:
-  call os_shutdown
-  jmp kernel_loop
-
-kernel_counter:
-  xor cx, cx
-  mov ax, word [.count]
-  mov si, .kernel_counter_msg
-  clc
-  .continue:
-    inc cx
-    cmp cx, 4096
-    je .print
-    mov ah, 1
-    int 16h
-    jnz .exit
-    jmp .continue
-  .print:
-    inc word [.count]
-    mov ax, word [.count]
-    call os_int_to_string
-    call os_string_out
-    call os_move_cursor_to_line_start
-    xor cx, cx
-    jmp .continue
-  .exit:
-    mov ah, 0
-    int 16h
-    jmp kernel_loop
-  .kernel_counter_msg db "Meow", 13, 0
-  .count dw 0
-
-os_shutdown: ; Internet
+kernel_exit:
+os_shutdown: ; Copied from Internet
 
   ; Check for APM
   mov ax, 5300h
@@ -223,8 +206,9 @@ os_shutdown: ; Internet
   mov cx, 0003h    ; power off
   int 15h
 
-no_apm:
-; fallback here (halt, reboot, etc.)
+  no_apm:
+  ; fallback here (halt, reboot, etc.)
+  jmp kernel_pre_init
 
 os_clear_screen:
   push ax
@@ -638,7 +622,19 @@ os_int_to_string:
   ret
   .string times 7 db 0
 
-%include "fs.asm"
+os_read_program:
+  pusha
+  mov ah, 2
+  mov al, 32
+  mov ch, 0
+  mov cl, 17
+  mov dh, 0
+  mov dl, byte [boot_drive]
+  xor bx, bx
+  mov es, bx
+  mov bx, 0B000h
+  popa
+  ret
 
 times 0E00h - ($-$$) - 3 db 0
 db "EOK"

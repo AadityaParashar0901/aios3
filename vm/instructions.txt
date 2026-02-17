@@ -7,8 +7,6 @@ stack: s
 Flags:
 zero
 carry
-parity
-sign
 equal
 overflow <- alu, stack, heap
 

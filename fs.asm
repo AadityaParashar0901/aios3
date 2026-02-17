@@ -1,24 +1,3 @@
-%if 0
-
-Offset 00 - 01: Bootloader -> 1 Sector
-Offset 02 - 0F: Kernel -> 7 Sectors
-Offset 10 - 1F: File Table -> 64 Files -> 8 Sectors
-Offset 20: File Data (17th Sector) {
-  Offset 20 - 3F: File 01 Data
-  Offset 40 - 5F: File 02 Data
-  ...
-}
-Each file will be of 8 KB -> 16 Sectors
-File Table Entry (64 bytes):
-  File Exists Byte (1 byte)
-  Identifier (61 bytes) ; Name
-  Size (2 bytes)
-
-%endif
-
-total_files equ 64
-file_data_start_sector equ 17
-
 os_read_files_index:
   pusha
 
