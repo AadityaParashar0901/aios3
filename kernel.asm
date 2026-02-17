@@ -21,7 +21,8 @@ jmp kernel_pre_init
   program_flag_zero db 0
   program_flag_carry db 0
   program_flag_equal db 0
-  program_flag_overflow db 0
+  register_a db 0
+  register_b db 0
 
 kernel_pre_init:
   mov byte [boot_device], bl ; Save boot device
@@ -159,31 +160,376 @@ jmp kernel_run_program
     lodsw
     and ax, 65535
     ret
+  program_get_one_register:
+    mov byte [register_a], ax
+    mov si, Program_Registers
+    add si, byte [register_a]
+    lodsw
+    ret
   program_get_two_registers:
     push ax
     shr ax, 4
     shl ax, 1
-    mov byte [.register_a], ax
+    mov byte [register_a], ax
     pop ax
     and ax, 15
     shl ax, 1
-    mov byte [.register_b], ax
+    mov byte [register_b], ax
     mov si, Program_Registers
-    add si, byte [.register_b]
+    add si, byte [register_b]
     lodsw
     mov bx, ax
     mov si, Program_Registers
-    add si, byte [.register_a]
+    add si, byte [register_a]
     lodsw
     ret
-  .program_instruction_add_RR
+  program_get_register_and_value:
+    mov bx, ax
+    and bx, 15
+    shr ax, 4
+    shl ax, 1
+    mov byte [register_a], ax
+    mov si, Program_Registers
+    add si, byte [register_a]
+    lodsw
+    ret
+  program_set_one_register:
+    mov di, Program_Registers
+    add di, byte [register_a]
+    stosw
+    ret
+  program_update_flags:
+    jnz .no_zero
+    mov byte [program_flag_zero], 1
+    .no_zero:
+    jnc .no_carry
+    mov byte [program_flag_carry], 1
+    .no_carry:
+    ret
+  program_push_register_a:
+    call program_set_one_register
+    push es
+    push bx
+    mov bx, 1000h
+    mov es, bx
+    mov di, word [program_register_s]
+    stosw
+    pop bx
+    pop es
+    add word [program_register_s], 2
+    ret
+  program_pop_register_a:
+    call program_set_one_register
+    push ds
+    push bx
+    mov bx, 1000h
+    mov ds, bx
+    mov si, word [program_register_s]
+    lodsw
+    pop bx
+    pop ds
+    sub word [program_register_s], 2
+    ret
+  .program_instruction_add_RR:
     call program_read_byte
     call program_get_two_registers
     add ax, bx
-
+    call program_update_flags
+    call program_set_one_register
     ret
-    .register_a db 0
-    .register_b db 0
+  .program_instruction_add_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    add ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_mul_RR:
+    call program_read_byte
+    call program_get_two_registers
+    mul bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_mul_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    mul bx
+    call program_update_flags
+    call program_set_one_register
+  .program_instruction_div_RR:
+    call program_read_byte
+    call program_get_two_registers
+    div bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_shl_RR:
+    call program_read_byte
+    call program_get_two_registers
+    shl ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_shl_RV:
+    call program_read_byte
+    call program_get_register_and_value
+    shl ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_shr_RR:
+    call program_read_byte
+    call program_get_two_registers
+    shr ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_shr_RV:
+    call program_read_byte
+    call program_get_register_and_value
+    shr ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_not_R:
+    call program_read_byte
+    call program_get_one_register
+    not ax
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_test_RR:
+    call program_read_byte
+    call program_get_two_registers
+    test ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_and_RR:
+    call program_read_byte
+    call program_get_two_registers
+    and ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_and_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    and ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_or_RR:
+    call program_read_byte
+    call program_get_two_registers
+    or ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_or_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    or ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_xor_RR:
+    call program_read_byte
+    call program_get_two_registers
+    xor ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_xor_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    xor ax, bx
+    call program_update_flags
+    call program_set_one_register
+    ret
+  .program_instruction_clc:
+    mov byte [program_flag_carry], 0
+    ret
+  .program_instruction_stc:
+    mov byte [program_flag_carry], 1
+    ret
+  .program_instruction_hlt:
+    jmp kernel_exit
+  .program_instruction_ret:
+    mov byte [register_a], 8 ; Set register to i
+    call program_pop_register_a
+    ret
+  .program_instruction_push_R:
+    call program_read_byte
+    call program_get_one_register
+    call program_push_register_a
+    ret
+  .program_instruction_pop_R:
+    call program_read_byte
+    call program_get_one_register
+    call program_pop_register_a
+    ret
+  .program_instruction_call_M:
+    call program_read_word
+    mov word [program_register_i], ax
+    ret
+  .program_instruction_jc_M:
+    call program_read_word
+    cmp byte [program_flag_carry], 1
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jnc_M:
+    call program_read_word
+    cmp byte [program_flag_carry], 0
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jz_M:
+    call program_read_word
+    cmp byte [program_flag_zero], 1
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jnz_M:
+    call program_read_word
+    cmp byte [program_flag_zero], 0
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jmp_eq_M:
+    call program_read_word
+    cmp byte [program_flag_equal], 1
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jmp_l_M:
+    ret
+  .program_instruction_jmp_g_M:
+    ret
+  .program_instruction_jmp_le_M:
+    ret
+  .program_instruction_jmp_ge_M:
+    ret
+  .program_instruction_jmp_ne_M:
+    call program_read_word
+    cmp byte [program_flag_equal], 0
+    jne .leave
+    mov word [program_register_i], ax
+    .leave:
+    ret
+  .program_instruction_jmp_M:
+    call program_read_word
+    mov word [program_register_i], ax
+    ret
+  .program_instruction_mov_RR:
+    call program_read_byte
+    call program_get_two_registers
+    mov ax, bx
+    call program_set_one_register
+    ret
+  .program_instruction_mov_RM:
+    call program_read_byte
+    call program_get_one_register
+    call program_read_word
+    mov si, ax
+    add si, program_loading_point
+    lodsw
+    call program_set_one_register
+    ret
+  .program_instruction_mov_RV:
+    call program_read_byte
+    call program_get_one_register
+    call program_read_word
+    call program_set_one_register
+    ret
+  .program_instruction_mov_MR:
+    call program_read_byte
+    call program_get_one_register
+    push ax
+    call program_read_word
+    mov di, ax
+    add di, program_loading_point
+    pop ax
+    stosw
+    ret
+  .program_instruction_cmp_RR:
+    call program_read_byte
+    call program_get_two_registers
+    cmp ax, bx
+    call program_update_flags
+    ret
+  .program_instruction_cmp_RM:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    mov si, ax
+    add si, program_loading_point
+    lodsw
+    cmp ax, bx
+    call program_update_flags
+    ret
+  .program_instruction_cmp_RV:
+    call program_read_byte
+    call program_get_one_register
+    mov bx, ax
+    call program_read_word
+    cmp bx, ax
+    call program_update_flags
+    ret
+  .program_instruction_int_X:
+    call program_read_byte
+    call program_execute_interrupt
+    ret
+  .program_instruction_lodb:
+    mov si, word [program_register_e]
+    inc word [program_register_e]
+    add si, program_loading_point
+    lodsb
+    mov word [register_a], 1
+    call program_set_one_register
+    ret
+  .program_instruction_lodw:
+    mov si, word [program_register_e]
+    inc word [program_register_e]
+    inc word [program_register_e]
+    add si, program_loading_point
+    lodsw
+    mov word [register_a], 1
+    call program_set_one_register
+    ret
+  .program_instruction_stob:
+    mov di, word [program_register_f]
+    inc word [program_register_f]
+    add di, program_loading_point
+    mov ax, word [program_register_a]
+    stosb
+    ret
+  .program_instruction_stow:
+    mov di, word [program_register_f]
+    inc word [program_register_f]
+    inc word [program_register_f]
+    add di, program_loading_point
+    mov ax, word [program_register_a]
+    stosw
+    ret
 
 kernel_exit:
 os_shutdown: ; Copied from Internet
@@ -638,3 +984,5 @@ os_read_program:
 
 times 0E00h - ($-$$) - 3 db 0
 db "EOK"
+
+program_loading_point:
