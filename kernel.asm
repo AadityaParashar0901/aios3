@@ -46,6 +46,12 @@ mov si, os_input_string
   mov di, command_ls
     call os_string_compare_till_b_length
     jc kernel_ls
+  mov di, command_read
+    call os_string_compare_till_b_length
+    jc kernel_read
+  mov di, command_write
+    call os_string_compare_till_b_length
+    jc kernel_write
   mov di, command_touch
     call os_string_compare_till_b_length
     jc kernel_touch
@@ -63,10 +69,12 @@ jmp kernel_loop
 
 welcome_msg db "Hello! Welcome to AIOS 3!", 13, 0
 cli_msg db "> ", 0
-new_file_name db "pussy_cat.txt", 0
+new_file_name db "new_demo_file.txt", 0
 command_clear db "clear", 0
 command_echo db "echo", 0
 command_ls db "ls", 0
+command_read db "read", 0
+command_write db "write", 0
 command_touch db "touch", 0
 command_help db "help", 0
 command_shutdown db "shutdown", 0
@@ -87,6 +95,72 @@ kernel_ls:
   call os_print_files_index
   jmp kernel_loop
 
+kernel_read:
+  add si, 5
+  mov word [.file_name], si ; Copy File Name Pointer to .file_name
+  mov dx, 0
+  mov di, word [.file_name]
+  mov bx, 1000h
+  mov es, bx
+  mov bx, 0100h
+  call os_read_file
+  jnc .failed
+  .done:
+    mov dx, 0
+    mov es, dx
+    mov bx, 1000h
+    mov ds, bx
+    mov si, 0100h
+    call os_string_out
+    xor bx, bx
+    mov ds, bx
+    jmp kernel_loop
+  .failed:
+    mov bx, 0
+    mov es, bx
+    mov ds, bx
+    mov dx, 0
+    mov si, .failure_msg
+    call os_string_out
+    jmp kernel_loop
+  .file_name dw 0
+  .failure_msg db "File not found!", 0
+
+kernel_write:
+  add si, 6
+  mov word [.file_name], si ; Copy File Name Pointer to .file_name
+  call os_string_in
+  mov si, os_input_string
+  call os_string_length
+  mov word [.file_size], cx
+  mov bx, 1000h
+  mov es, bx
+  mov di, 0100h
+  call os_string_copy ; Copy File Contents to 1:0100h
+  mov dx, 0
+  mov di, word [.file_name]
+  mov cx, word [.file_size]
+  mov bx, 1000h
+  mov es, bx
+  mov bx, 0100h
+  call os_write_file
+  jnc .failed
+  .done:
+    mov dx, 0
+    mov es, dx
+    mov ds, dx
+    jmp kernel_loop
+  .failed:
+    mov dx, 0
+    mov es, dx
+    mov ds, dx
+    mov si, .failure_msg
+    call os_string_out
+    jmp kernel_loop
+  .file_name dw 0
+  .file_size dw 0
+  .failure_msg db "File not found!", 0
+
 kernel_touch:
   mov si, os_input_string
   add si, 6
@@ -97,7 +171,7 @@ kernel_help:
   mov si, kernel_help_string
   call os_string_out
   jmp kernel_loop
-  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    ls", 13, "    touch", 13, "    help", 13, "    shutdown", 13, "    counter", 0
+  kernel_help_string db "This is AIOS 3!", 13, "Commands:", 13, "    clear", 13, "    echo", 13, "    ls", 13, "    write", 13, "    touch", 13, "    help", 13, "    shutdown", 13, "    counter", 0
 
 kernel_shutdown:
   call os_shutdown
@@ -131,7 +205,7 @@ kernel_counter:
   .kernel_counter_msg db "Meow", 13, 0
   .count dw 0
 
-os_shutdown:
+os_shutdown: ; Internet
 
 ; Check for APM
 mov ax, 5300h
@@ -432,6 +506,21 @@ os_string_in:
     pop ax
     ret
 
+os_string_length:
+  push ax
+  push si
+  xor cx, cx
+  .continue:
+    inc cx
+    lodsb
+    cmp al, 0
+    je .done
+    jmp .continue
+  .done:
+    pop si
+    pop ax
+    ret
+
 os_string_copy:
   push ax
   push si
@@ -553,4 +642,5 @@ os_int_to_string:
 
 %include "fs.asm"
 
-times 1200h - ($-$$) db 0
+times 0E00h - ($-$$) - 3 db 0
+db "EOK"

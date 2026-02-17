@@ -15,16 +15,16 @@ LabelsList$ = ListStringNew
 LabelsOffset$ = ListStringNew
 PendingLabelsList$ = ListStringNew
 Do While FileBufferOffset < Len(FileBuffer)
-    OriginalLine$ = GetNextLine$
-    L$ = LCase$(OriginalLine$): CurrentLine = CurrentLine + 1
+    OriginalLine$ = GetNextLine$: CurrentLine = CurrentLine + 1
+    Print "Current Line: "; ListStringPrint(SplitStringIntoList$(OriginalLine$))
+    L$ = LCase$(OriginalLine$)
     If InStr(L$, ":") Then
         ListStringAdd LabelsList$, ListStringGet(SplitStringIntoList$(L$), 1)
         ListStringAdd LabelsOffset$, MKI$(OutputFileOffset)
-        Print "Adding Label: "; ListStringGet(LabelsList$, ListStringLength(LabelsList$)); ":"; OutputFileOffset
+        Print "    Adding Label: "; ListStringGet(LabelsList$, ListStringLength(LabelsList$)); ":"; OutputFileOffset
         _Continue
     End If
     If InStr(L$, ";") Then L$ = SplitStringIntoList$(_Trim$(Left$(L$, InStr(L$, ";")))) Else L$ = SplitStringIntoList$(L$) ' Remove Comments
-    Print "Current Line: "; ListStringPrint(SplitStringIntoList$(OriginalLine$))
     FIRST_WORD$ = ListStringGet(L$, 1)
     If ListStringLength(L$) >= 2 Then ARG_ONE$ = ListStringGet(L$, 2)
     If ListStringLength(L$) >= 3 Then ARG_TWO$ = ListStringGet(L$, 3)
@@ -79,13 +79,13 @@ Do While FileBufferOffset < Len(FileBuffer)
 Loop
 Print
 Print "Labels: "; ListStringPrint(LabelsList$)
-Print "Length of PendingLabelsList: "; ListStringLength(PendingLabelsList$)
+Print "Processing Pending Labels: "; ListStringLength(PendingLabelsList$)
 For I = 1 To ListStringLength(PendingLabelsList$)
     L$ = ListStringGet(PendingLabelsList$, I)
     __Label$ = Left$(L$, Len(L$) - 2)
     If ListStringSearch(LabelsList$, __Label$) = 0 Then System InvalidLabel(__Label$)
     __Position~% = CVI(Right$(L$, 2))
-    Print "Updating "; __Label$; " at position:"; __Position~%
+    Print "    Updating "; __Label$; " at position:"; __Position~%
     Mid$(OutputFile$, __Position~%, 2) = ListStringGet(LabelsOffset$, ListStringSearch(LabelsList$, __Label$))
 Next I
 _WriteFile Command$ + ".bin", Left$(OutputFile$, OutputFileOffset)
@@ -102,7 +102,7 @@ End Function
 
 Sub AddBitBuffer (Value~&&, Bits~%%)
     Static BitBuffer~&&, BitBufferSize~%%, BitCount~%%
-    B$ = _Bin$(Value~&&): Print "Adding: "; String$(Bits~%% - Len(B$), 48) + B$
+    B$ = _Bin$(Value~&&): Print "    Adding: "; String$(Bits~%% - Len(B$), 48) + B$
     BitBuffer~&& = _ShL(BitBuffer~&&, Bits~%%) Or Value~&&
     BitBufferSize~%% = BitBufferSize~%% + Bits~%%
     PutBitBuffer OutputFile$, OutputFileOffset, BitBuffer~&&, BitBufferSize~%%, BitCount~%%
@@ -128,7 +128,7 @@ Function ParseMemoryLocation~% (ARG$) Static
     If Asc(ARG$, 1) = 91 Then
         ParseMemoryLocation~% = ParseValue~%(Mid$(ARG$, 2, Len(ARG$) - 2))
     Else
-        Print "Adding Entry to PendingLabelsList: "; ARG$; " for "; _ToStr$(OutputFileOffset + 1)
+        Print "    Adding Pending Label: "; ARG$; " for "; _ToStr$(OutputFileOffset + 1)
         ListStringAdd PendingLabelsList$, ARG$ + MKI$(OutputFileOffset + 1)
         ParseMemoryLocation~% = 0
     End If
@@ -139,12 +139,12 @@ Function ChangeEndianInteger~% (__T~%) Static
 End Function
 
 Function InvalidInstruction Static
-    Print "Invalid Instruction at Line: "; CurrentLine
+    Print "    Invalid Instruction at Line: "; CurrentLine
     InvalidInstruction = 1
     System 1
 End Function
 Function InvalidLabel (L$) Static
-    Print "Invalid Label: "; L$
+    Print "    Invalid Label: "; L$
     InvalidLabel = 2
 End Function
 
