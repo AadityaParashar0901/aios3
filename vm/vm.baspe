@@ -1,0 +1,273 @@
+$Console
+Screen 0
+
+Dim Shared As _Unsigned Integer RA, RB, RC, RD, RE, RF, RS
+Dim Shared As _Unsigned Long RI, tmpRI
+RS = &HFFFF
+RI = 0
+Dim Shared As _Unsigned _Byte FZ, FC, FP, FS, FE
+Dim Shared MEMORY As String * 65536
+
+Dim Shared InputFile$
+If _FileExists(Command$(1)) Then InputFile$ = Command$(1) Else If _FileExists(_StartDir$ + "/" + Command$(1)) Then InputFile$ = _StartDir$ + "/" + Command$(1) Else InputFile$ = ""
+InputFile$ = _ReadFile$(Command$(1))
+Mid$(MEMORY, RI + 1, Len(InputFile$)) = InputFile$
+Dim As _Unsigned _Byte Instruction
+Dim As _Unsigned Integer r1, r2
+
+Color 15, 0
+Cls , 0
+
+While 1
+    tmpRI = RI
+    Instruction = GetBitBuffer~&&(8)
+    _Echo "Instruction(" + IntegerToHex$(tmpRI) + "): " + _ToStr$(Instruction)
+    Select Case Instruction
+        Case 0: ' nop
+        Case 1: ' add R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) + GetRegister(r2)
+        Case 2: ' add R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) + r2
+        Case 3: ' mul R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) * GetRegister(r2)
+        Case 4: ' mul R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) * r2
+        Case 5: ' div R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) \ GetRegister(r2)
+        Case 6: ' div R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) \ r2
+        Case 7: ' shl R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, _ShL(GetRegister(r1), GetRegister(r2))
+        Case 8: ' shl R, V4
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, _ShL(GetRegister(r1), r2)
+        Case 9: ' shr R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, _ShR(GetRegister(r1), GetRegister(r2))
+        Case 10: ' shr R, V4
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, _ShR(GetRegister(r1), r2)
+        Case 11: ' not R
+            r1 = GetBitBuffer(8)
+            SetRegister r1, Not (GetRegister(r1))
+        Case 12: ' test R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            FE = r1 = r2
+        Case 13: ' and R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) And GetRegister(r2)
+        Case 14: ' and R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) And r2
+        Case 15: ' or R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) Or GetRegister(r2)
+        Case 16: ' or R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) Or r2
+        Case 17: ' xor R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r1) Xor GetRegister(r2)
+        Case 18: ' xor R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, GetRegister(r1) Xor r2
+        Case 19: ' clc
+            FC = 0
+        Case 20: ' stc
+            FC = -1
+        Case 21: ' hlt
+            Exit While
+        Case 22: ' ret
+            RI = Pop
+        Case 23: ' push R
+            Push GetBitBuffer(8)
+        Case 24: ' pop R
+            SetRegister GetBitBuffer(8), Pop
+        Case 25: ' call M
+            r1 = GetBitBuffer(16)
+            Push 7
+            RI = r1
+        Case 26: ' jc M
+            r1 = GetBitBuffer(16)
+            If FC Then RI = r1
+        Case 27: ' jnc M
+            r1 = GetBitBuffer(16)
+            If FC = 0 Then RI = r1
+        Case 28: ' jz M
+            r1 = GetBitBuffer(16)
+            If FZ Then RI = r1
+        Case 29: ' jnz M
+            r1 = GetBitBuffer(16)
+            If FZ = 0 Then RI = r1
+        Case 30: ' jmp eq M
+            r1 = GetBitBuffer(16)
+            If FE Then RI = r1
+        Case 31: ' jmp l M
+        Case 32: ' jmp g M
+        Case 33: ' jmp le M
+        Case 34: ' jmp ge M
+        Case 35: ' jmp ne M
+            r1 = GetBitBuffer(16)
+            If FE = 0 Then RI = r1
+        Case 36: ' mov R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            SetRegister r1, GetRegister(r2)
+        Case 37: ' mov R, M
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, CVI(Mid$(MEMORY, 1 + r2, 2))
+        Case 38: ' mov R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            SetRegister r1, r2
+        Case 39: ' mov M, R
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            Mid$(MEMORY, r2, 2) = MKI$(GetRegister(r1))
+        Case 40: ' cmp R, R
+            r1 = GetBitBuffer(4)
+            r2 = GetBitBuffer(4)
+            FE = GetRegister(r1) = GetRegister(r2)
+        Case 41: ' cmp R, M
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            FE = GetRegister(r1) = CVI(Mid$(MEMORY, 1 + r2, 2))
+        Case 42: ' cmp R, V
+            r1 = GetBitBuffer(8)
+            r2 = GetBitBuffer(16)
+            FE = GetRegister(r1) = r2
+        Case 43: ' int X
+            CallInterrupt GetBitBuffer(8)
+        Case 44: ' jmp M
+            RI = GetBitBuffer(16)
+        Case 45: ' lodb
+            SetRegister 1, Asc(MEMORY, 1 + RE)
+            RE = RE + 1
+        Case 46: ' lodw
+            SetRegister 1, CVI(Mid$(MEMORY, 1 + RE, 2))
+            RE = RE + 2
+        Case 47: ' stob
+            Asc(MEMORY, 1 + RF) = RA And 255
+            RF = RF + 1
+        Case 48: ' stow
+            Mid$(MEMORY, 1 + RF, 2) = MKI$(RA)
+            RF = RF + 2
+    End Select
+    DumpRegisters
+Wend
+Sleep
+System
+Sub CallInterrupt (X As _Unsigned _Byte)
+    _Echo "Called Interrupt: " + _ToStr$(X)
+    Select Case X
+        Case 1: ' Clear Screen
+            Cls , _ShR(RB And 255, 4)
+            Color RB And 15
+        Case 2: ' Print Character
+            Print Chr$(RA And 255);
+        Case 3: ' Input Character
+            If FC Then
+                Sleep
+                T$ = InKey$
+                If Len(T$) = 1 Then RA = Asc(T$) Else RA = 0
+            Else
+                T$ = InKey$
+                If Len(T$) = 1 Then RA = Asc(T$) Else RA = 0
+            End If
+        Case 4: ' Print String
+            S$ = Mid$(MEMORY, RE + 1, InStr(RE + 1, MEMORY, Chr$(0)) - RE - 1)
+            Print S$;
+            _Dest _Console
+            Dump S$
+            _Dest 0
+        Case 5: ' Input String
+        Case 6: ' Convert String to Integer
+            RA = Val(Mid$(MEMORY, RF + 1, InStr(RF + 1, MEMORY, Chr$(0)) - RF - 1))
+        Case 7: ' Convert Integer to String
+            T$ = _ToStr$(RA)
+            Mid$(MEMORY, RE + 1, Len(T$)) = T$
+        Case 8: ' Get Cursor Position
+            RD = _ShL(CsrLin, 8) Or (Pos(0) - 1)
+    End Select
+End Sub
+$Checking:Off
+Sub SetRegister (C~%%, V~%) Static
+    Select Case C~%%
+        Case 1: RA = V~%
+        Case 2: RB = V~%
+        Case 3: RC = V~%
+        Case 4: RD = V~%
+        Case 5: RE = V~%
+        Case 6: RF = V~%
+        Case 7: RI = V~%
+        Case 8: RS = V~%
+        Case Else: _Echo "Error: Set Register"
+            Error 9
+    End Select
+End Sub
+Function GetRegister~% (C~%%) Static
+    Select Case C~%%
+        Case 1: GetRegister = RA
+        Case 2: GetRegister = RB
+        Case 3: GetRegister = RC
+        Case 4: GetRegister = RD
+        Case 5: GetRegister = RE
+        Case 6: GetRegister = RF
+        Case 7: GetRegister = RI
+        Case 8: GetRegister = RS
+        Case Else: _Echo "Error: Get Register"
+            Error 9
+    End Select
+End Function
+Sub DumpRegisters
+    For I = 0 To 5
+        _Echo "  R" + Chr$(I + 65) + ": " + _ToStr$(GetRegister(I + 1))
+    Next I
+    _Echo "  RI: " + _ToStr$(RI)
+    _Echo "  RS: " + _ToStr$(RS)
+    _Echo ""
+End Sub
+Sub Push (C~%%) Static
+    RS = RS - 2
+    Mid$(MEMORY, RS, 2) = MKI$(GetRegister(C~%%))
+End Sub
+Function Pop~% () Static
+    Pop~% = CVI(Mid$(MEMORY, RS, 2))
+    RS = RS + 2
+End Function
+Function GetBitBuffer~&& (Bits~%%)
+    Static BitCount~%%
+    If Bits~%% = 16 Then GetBitBuffer~&& = ChangeEndianInteger~%(ReadBitBufferMSB(MEMORY, RI, Bits~%%, BitCount~%%)) Else GetBitBuffer~&& = ReadBitBufferMSB(MEMORY, RI, Bits~%%, BitCount~%%)
+End Function
+Function ChangeEndianInteger~% (__T~%) Static
+    ChangeEndianInteger~% = (_ShL(__T~%, 8) Or _ShR(__T~%, 8)) And 65535
+End Function
+'$Include:'include\ReadBitBufferMSB.bm'
+'$Include:'include\hex.bm'
+'$Include:'include\dump.bm'
+$Checking:On
