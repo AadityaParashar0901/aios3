@@ -5,6 +5,8 @@ Const ARG_TYPE_REGISTER = 1
 Const ARG_TYPE_MEMORY = 2
 Const ARG_TYPE_VALUE = 3
 Const ARG_TYPE_MEMORY_PENDING_VALUE = 4
+Const ARG_TYPE_FLAGS = 5
+Const ARG_TYPE_REGISTER_MEMORY = 6
 
 Dim Shared FileBuffer As String, FileBufferOffset As _Unsigned Long
 If _FileExists(Command$) Then FileBuffer = _ReadFile$(Command$) Else If _FileExists(_StartDir$ + "/" + Command$) Then FileBuffer = _ReadFile$(_StartDir$ + "/" + Command$) Else System
@@ -16,10 +18,10 @@ LabelsList$ = ListStringNew
 LabelsOffset$ = ListStringNew
 PendingLabelsList$ = ListStringNew
 Do While FileBufferOffset < Len(FileBuffer)
-    OriginalLine$ = GetNextLine$: CurrentLine = CurrentLine + 1
+    OriginalLine$ = _Trim$(GetNextLine$): CurrentLine = CurrentLine + 1
     Print "Current Line: "; ListStringPrint(SplitStringIntoList$(OriginalLine$))
     L$ = LCase$(OriginalLine$)
-    If InStr(L$, ":") Then
+    If Right$(L$, 1) = ":" Then
         ListStringAdd LabelsList$, ListStringGet(SplitStringIntoList$(L$), 1)
         ListStringAdd LabelsOffset$, MKI$(OutputFileOffset)
         Print "    Adding Label: "; ListStringGet(LabelsList$, ListStringLength(LabelsList$)); ":"; OutputFileOffset
@@ -40,37 +42,54 @@ Do While FileBufferOffset < Len(FileBuffer)
                     AddBitBuffer Val(__I$), 8
                 End If
             Next I
+        Case "label_data": AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
         Case "nop": AddBitBuffer 0, 8
         Case "clc", "stc", "hlt", "ret": AddBitBuffer 18 + ListStringSearch(ListStringFromString("clc,stc,hlt,ret"), FIRST_WORD$), 8
         Case "lodb", "lodw", "stob", "stow": AddBitBuffer 44 + ListStringSearch(ListStringFromString("lodb,lodw,stob,stow"), FIRST_WORD$), 8
         Case "not": AddBitBuffer 11, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
+        Case "test": AddBitBuffer 12, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
+        Case "inc": AddBitBuffer 49, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
+        Case "dec": AddBitBuffer 50, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
         Case "int": AddBitBuffer 43, 8: AddBitBuffer ParseValue(ARG_ONE$), 8
         Case "push", "pop": AddBitBuffer 22 + ListStringSearch(ListStringFromString("push,pop"), FIRST_WORD$), 8
             AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
-        Case "call", "jc", "jnc", "jz", "jnz": AddBitBuffer 24 + ListStringSearch(ListStringFromString("call,jc,jnc,jz,jnz"), FIRST_WORD$), 8
-            AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
-        Case "jmp": If GetArgType(ARG_ONE$) = ARG_TYPE_MEMORY Then
-                AddBitBuffer 44, 8
-                AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
+        Case "call": If GetArgType(ARG_ONE$) = ARG_TYPE_REGISTER Then
+                AddBitBuffer 54, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
             Else
+                AddBitBuffer 25, 8: AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
+            End If
+        Case "jc", "jnc", "jz", "jnz": AddBitBuffer 25 + ListStringSearch(ListStringFromString("jc,jnc,jz,jnz"), FIRST_WORD$), 8
+            AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
+        Case "jmp": If GetArgType(ARG_ONE$) = ARG_TYPE_FLAGS Then
+                Print "    Conditional Jump"
                 AddBitBuffer 29 + ListStringSearch(ListStringFromString("eq,l,g,le,ge,ne"), ARG_ONE$), 8
                 AddBitBuffer ParseMemoryLocation(ARG_TWO$), 16
+            ElseIf GetArgType(ARG_ONE$) = ARG_TYPE_REGISTER Then
+                Print "    Unconditional Indirect Jump"
+                AddBitBuffer 53, 8
+                AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8
+            Else
+                Print "    Unconditional Jump"
+                AddBitBuffer 44, 8
+                AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
             End If
         Case "mov": Select Case GetArgType(ARG_TWO$)
                 Case ARG_TYPE_REGISTER: Select Case GetArgType(ARG_ONE$)
                         Case ARG_TYPE_REGISTER: AddBitBuffer 36, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 4: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 4
                         Case ARG_TYPE_MEMORY: AddBitBuffer 39, 8: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 8: AddBitBuffer ParseMemoryLocation(ARG_ONE$), 16
+                        Case ARG_TYPE_REGISTER_MEMORY: AddBitBuffer 55, 8: AddBitBuffer ListStringSearch(Registers$, Mid$(ARG_ONE$, 2, 1)), 4: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 4
                     End Select
                 Case ARG_TYPE_MEMORY: AddBitBuffer 37, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseMemoryLocation(ARG_TWO$), 16
                 Case ARG_TYPE_VALUE: AddBitBuffer 38, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ChangeEndianInteger(ParseValue(ARG_TWO$)), 16
                 Case ARG_TYPE_MEMORY_PENDING_VALUE: AddBitBuffer 38, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseMemoryLocation(ARG_TWO$), 16
+                Case ARG_TYPE_REGISTER_MEMORY: AddBitBuffer 56, 8: AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 4: AddBitBuffer ListStringSearch(Registers$, Mid$(ARG_TWO$, 2, 1)), 4
             End Select
-        Case "add", "mul", "div", "shl", "shr", "test", "and", "or", "xor", "cmp": Select Case GetArgType(ARG_TWO$)
-                Case ARG_TYPE_REGISTER: AddBitBuffer Val(ListStringGet(ListStringFromString("1,3,5,7,9,12,13,15,17,40"), ListStringSearch(ListStringFromString("add,mul,div,shl,shr,test,and,or,xor,cmp"), FIRST_WORD$))), 8
+        Case "add", "sub", "mul", "div", "shl", "shr", "and", "or", "xor", "cmp": Select Case GetArgType(ARG_TWO$)
+                Case ARG_TYPE_REGISTER: AddBitBuffer Val(ListStringGet(ListStringFromString("1,51,3,5,7,9,13,15,17,40"), ListStringSearch(ListStringFromString("add,sub,mul,div,shl,shr,and,or,xor,cmp"), FIRST_WORD$))), 8
                     AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 4: AddBitBuffer ListStringSearch(Registers$, ARG_TWO$), 4
                 Case ARG_TYPE_MEMORY: AddBitBuffer _IIf(FIRST_WORD$ = "cmp", 41, InvalidInstructionError), 8
                     AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 8: AddBitBuffer ParseMemoryLocation(ARG_TWO$), 16
-                Case ARG_TYPE_VALUE: AddBitBuffer Val(ListStringGet(ListStringFromString("2,4,6,8,10,14,16,18,42"), ListStringSearch(ListStringFromString("add,mul,div,shl,shr,and,or,xor,cmp"), FIRST_WORD$))), 8
+                Case ARG_TYPE_VALUE: AddBitBuffer Val(ListStringGet(ListStringFromString("2,52,4,6,8,10,14,16,18,42"), ListStringSearch(ListStringFromString("add,sub,mul,div,shl,shr,and,or,xor,cmp"), FIRST_WORD$))), 8
                     If ListStringSearch(ListStringFromString("shl,shr"), FIRST_WORD$) Then
                         AddBitBuffer ListStringSearch(Registers$, ARG_ONE$), 4: AddBitBuffer ParseValue(ARG_TWO$), 4
                     Else
@@ -94,13 +113,25 @@ _WriteFile Command$ + ".bin", Left$(OutputFile$, OutputFileOffset)
 System
 
 Function GetArgType~%% (ARG$) Static
-    Print "    Identifying Argument Type: "; Asc(ARG$, 1)
+    If ListStringSearch(ListStringFromString("[a],[b],[c],[d],[e],[f],[i],[s]"), ARG$) Then
+        Print "    Identified Argument Type: ARG_TYPE_REGISTER_MEMORY"
+        GetArgType~%% = ARG_TYPE_REGISTER_MEMORY
+        Exit Function
+    End If
+    If ListStringSearch(ListStringFromString("eq,l,g,le,ge,ne"), ARG$) Then
+        Print "    Identified Argument Type: ARG_TYPE_FLAGS"
+        GetArgType~%% = ARG_TYPE_FLAGS
+        Exit Function
+    End If
+    Print "    Identifying Argument Type: "; ARG$, Asc(ARG$, 1)
     Select Case Asc(ARG$, 1)
-        Case 97 To 102, 105, 115: GetArgType~%% = _IIf(Len(ARG$) = 1, ARG_TYPE_REGISTER, ARG_TYPE_VALUE)
-        Case 48 To 57: GetArgType~%% = ARG_TYPE_VALUE
-        Case 91: GetArgType~%% = ARG_TYPE_MEMORY
-        Case Else: GetArgType~%% = ARG_TYPE_MEMORY_PENDING_VALUE
+        Case 97 To 102, 105, 115: GAT~%% = _IIf(Len(ARG$) = 1, ARG_TYPE_REGISTER, ARG_TYPE_MEMORY_PENDING_VALUE)
+        Case 48 To 57: GAT~%% = ARG_TYPE_VALUE
+        Case 91: GAT~%% = ARG_TYPE_MEMORY
+        Case Else: GAT~%% = ARG_TYPE_MEMORY_PENDING_VALUE
     End Select
+    Print "        Identified Argument Type: "; ListStringGet(ListStringFromString("REGISTER,MEMORY,VALUE,MEMORY_PENDING_VALUE,FLAGS"), GAT~%%)
+    GetArgType~%% = GAT~%%
 End Function
 
 Sub AddBitBuffer (Value~&&, Bits~%%)
@@ -160,7 +191,7 @@ Function SplitStringIntoList$ (I$) Static
     For I = 2 To Len(I$)
         B~%% = Asc(I$, I)
         Select Case B~%%
-            Case 32, 44: If Len(ListStringGet(O$, ListStringLength(O$))) Then ListStringAdd O$, ""
+            Case 9, 32, 44: If Len(ListStringGet(O$, ListStringLength(O$))) Then ListStringAdd O$, ""
             Case 34: If ListStringGet(O$, ListStringLength(O$)) = "" Then ListStringDelete O$, ListStringLength(O$)
                 ListStringAdd O$, Mid$(I$, I, InStr(I + 1, I$, Chr$(34)) - I + 1): I = InStr(I + 1, I$, Chr$(34)) + 1
             Case 91, 93, 95, 65 To 90, 48 To 57, 97 To 122: ListStringEdit O$, ListStringGet$(O$, ListStringLength(O$)) + Chr$(B~%%), ListStringLength(O$)

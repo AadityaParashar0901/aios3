@@ -3,6 +3,8 @@ Code		Size		Instruction
 00		1		nop
 01 RR		2		add R, R
 02 0R __ _V	4		add R, V
+33 RR		2		sub R, R
+34 0R __ _V	4		sub R, V
 03 RR		2		mul R, R
 04 0R __ _V	4		mul R, V
 05 RR		2		div R, R
@@ -12,7 +14,7 @@ Code		Size		Instruction
 09 RR		2		shr R, R
 0A RV		2		shr R, V4
 0B 0R		2		not R
-0C RR		2		test R, R
+0C 0R		2		test R
 0D RR		2		and R, R
 0E 0R __ _V	4		and R, V
 0F RR		2		or R, R
@@ -26,6 +28,7 @@ Code		Size		Instruction
 17 0R		2		push R
 18 0R		2		pop R
 19 __ _M	3		call M
+36 0R		2		call R
 1A __ _M	3		jc M
 1B __ _M	3		jnc M
 1C __ _M	3		jz M
@@ -37,10 +40,13 @@ Code		Size		Instruction
 22 __ _M	3		jmp ge M
 23 __ _M	3		jmp ne M
 2C __ _M	3		jmp M
+35 0R		2		jmp R
 24 RR		2		mov R, R
 25 0R __ _M	4		mov R, M
 26 0R __ _V	4		mov R, V
 27 0R __ _M	4		mov M, R
+37 RR		2		mov [R], R ; 2 bytes
+38 RR		2		mov R, [R] ; 2 bytes
 28 RR		2		cmp R, R
 29 0R __ _M	4		cmp R, M
 2A 0R __ _V	4		cmp R, V
@@ -49,6 +55,8 @@ Code		Size		Instruction
 2E		1		lodw
 2F		1		stob
 30		1		stow
+31 0R		2		inc R
+32 0R		2		dec R
 
 # Memory Referencing
 Memory can be referenced in two ways:
