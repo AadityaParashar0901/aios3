@@ -1,66 +1,82 @@
-mov b, 0x2F
-int 1
+; =========================
+; CODE SECTION
+; =========================
 
-mov e, ask
-int 4
+start:
 
-mov f, buffer
-int 5
+    mov F, inputStr
+    int 5
 
-; find length
-mov e, buffer
-mov c, 0
+    mov B, F          ; left pointer
+    mov C, F          ; temp pointer
 
-len_loop:
-    lodb
-    cmp a, 0
-    jz len_done
-    add c, 1
-    jmp len_loop
+; -------- FIND END --------
+find_end:
+    mov A, [C]
+    and A, 255
+    cmp A, 0
+    jz end_found
+    cmp A, 13
+    jz end_found
+    inc C
+    jmp find_end
 
-len_done:
-    add e, 65535     ; move back to last char
-    mov d, c
-    shr d, 1         ; half length
+end_found:
+    dec C             ; C = last valid char
 
-    mov f, buffer    ; left pointer
-    mov c, d
 
+; -------- CHECK LOOP --------
 check_loop:
-    cmp c, 0
-    jmp eq yes
 
-    lodb             ; left char in a
-    push a
+    ; D = C
+    mov D, C
+    sub D, B          ; D = C - B
 
-    mov a, 0
-    lodw             ; (using word read just to advance if needed)
-    pop b            ; left char
+    cmp D, 0
+    jz is_pal         ; crossed exactly
+    jmp l is_pal      ; crossed
 
-    cmp a, b
-    jmp ne no
+    mov A, [B]
+    and A, 255
+    mov D, [C]
+    and D, 255
+    cmp A, D
+    jnz not_pal
 
-    add c, 65535
+    inc B
+    dec C
     jmp check_loop
 
-yes:
-    mov e, yesmsg
+
+; -------- SUCCESS --------
+is_pal:
+    mov E, msgPal
     int 4
     hlt
 
-no:
-    mov e, nomsg
+
+; -------- FAIL --------
+not_pal:
+    mov E, msgNot
     int 4
     hlt
 
-ask:
-data "Enter string: "
+
+
+; =========================
+; DATA SECTION
+; =========================
+
+inputStr:
+data "                "
 data 0
-yesmsg:
-data "Palindrome!"
+
+msgPal:
+data "Palindrome"
+data 13
 data 0
-nomsg:
-data "Not Palindrome."
+
+msgNot:
+data "Not Palindrome"
+data 13
 data 0
-buffer:
-data 0,0,0,0,0,0,0,0,0,0,0
