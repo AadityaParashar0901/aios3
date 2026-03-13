@@ -22,7 +22,7 @@ While 1
     tmpRI = RI
     Instruction = GetBitBuffer~&&(8)
     _Echo "Instruction(" + IntegerToHex$(tmpRI) + "): " + _ToStr$(Instruction)
-    _Echo "Disassembly: " + ListStringGet(ListStringFromString("nop,add,add,mul,mul,div,div,shl,shl,shr,shr,not,test,and,and,or,or,xor,xor,clc,stc,hlt,ret,push,pop,call,jc,jnc,jz,jnz,jmp eq,jmp l,jmp g,jmp le,jmp ge,jmp ne,mov,mov,mov,mov,cmp,cmp,cmp,int,jmp,lodb,lodw,stob,stow,inc,dec,sub,sub,jmp,call,mov,mov"), Instruction)
+    _Echo "Disassembly: " + ListStringGet(ListStringFromString("nop,add RR,add RV,mul RR,mul RV,div RR,div RV,shl RR,shl RV,shr RR,shr RV,not R,test R,and RR,and RV,or RR,or RV,xor RR,xor RV,clc,stc,hlt,ret,push R,pop R,call M,jc M,jnc M,jz M,jnz M,jmp eq M,jmp l M,jmp g M,jmp le M,jmp ge M,jmp ne M,mov RR,mov RM,mov RV,mov MR,cmp RR,cmp RM,cmp RV,int X,jmp M,lodb,lodw,stob,stow,inc R,dec R,sub RR,sub RV,jmp R,call R,mov [R]R,mov R[R]"), 1 + Instruction)
     Select Case Instruction
         Case 0: ' nop
         Case 1: ' add R, R
@@ -259,6 +259,8 @@ Sub CallInterrupt (X As _Unsigned _Byte)
             Mid$(MEMORY, RE + 1, Len(T$) + 1) = T$ + Chr$(0)
         Case 8: ' Get Cursor Position
             RD = _ShL(CsrLin, 8) Or (Pos(0) - 1)
+        Case 9: ' Set Cursor Position
+            Locate 1 + _ShR(RD, 8), 1 + RD And 255
     End Select
 End Sub
 $Checking:Off

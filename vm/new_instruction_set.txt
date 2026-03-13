@@ -93,3 +93,7 @@ Memory can be referenced in two ways:
 	row: high-byte(d);
 	column: low-byte(d);
 }
+9. Set Cursor Position {
+	row: high-byte(d);
+	column: low-byte(d);
+}
